@@ -27,9 +27,12 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Bot is operational")
 
 def run_http_server():
+    # Render avtomatik beradigan PORT o‘zgaruvchisini tinglash shart
     port = int(os.environ.get("PORT", 8080))
     try:
+        # '0.0.0.0' barcha tashqi so‘rovlarni qabul qilish uchun zarur
         server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        logger.info(f"Health Check server {port}-portda ishga tushdi")
         server.serve_forever()
     except Exception as e:
         logger.error(f"HTTP Server error: {e}")
@@ -92,7 +95,6 @@ def perform_analysis(f):
         raw_sector = f.get('Sector', 'N/A')
         uzb_sector = SECTOR_MAP.get(raw_sector, raw_sector)
         
-        # Debt/Equity va Shari’at statusi
         raw_debt = clean_val(f.get('Debt/Eq', '0'))
         try:
             debt_eq = float(raw_debt)
@@ -166,11 +168,11 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await progress.delete()
     except Exception as e:
         logger.error(f"Request error: {e}")
-        await progress.edit_text("$ticker noto‘g‘ri yoki uzilish yuz berdi .")
+        await progress.edit_text("$ticker noto‘g‘ri yoki uzilish yuz berdi")
 
 # 8. MAIN ENTRY POINT
 def main():
-    # Render port tinglovchi
+    # 1. HTTP Serverni alohida thread'da ishga tushirish (Render uchun shart)
     threading.Thread(target=run_http_server, daemon=True).start()
     
     token = os.getenv("BOT_TOKEN")
@@ -178,7 +180,7 @@ def main():
         logger.error("BOT_TOKEN topilmadi!")
         return
 
-    # Python 3.12 va undan yuqori versiyalar uchun barqaror build
+    # Python 3.12 va yuqori versiyalar uchun barqaror build
     app = Application.builder().token(token).build()
     
     if app.job_queue:
@@ -187,10 +189,10 @@ def main():
             time=dt_time(hour=9, minute=0, second=0, tzinfo=UZB_TZ)
         )
     
-    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuborishingiz mumkin.")))
+    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuborishingiz mumkin")))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\$'), handle_ticker))
     
-    logger.info("Bot ishga tushirildi...")
+    logger.info("Bot polling rejimida ishga tushirildi...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
