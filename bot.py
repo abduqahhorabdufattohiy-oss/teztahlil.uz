@@ -27,10 +27,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Bot is operational")
 
 def run_http_server():
-    # Render avtomatik beradigan PORT o‘zgaruvchisini tinglash shart
     port = int(os.environ.get("PORT", 8080))
     try:
-        # '0.0.0.0' barcha tashqi so‘rovlarni qabul qilish uchun zarur
         server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
         logger.info(f"Health Check server {port}-portda ishga tushdi")
         server.serve_forever()
@@ -63,7 +61,7 @@ def clean_val(val):
     if val in ['-', 'N/A', None]: return "0"
     return str(val).replace(',', '').replace('%', '')
 
-# 5. IQTISODIY TAQVIM (HAR KUNI 09:00 DA)
+# 5. IQTISODIY TAQVIM
 async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
     if not os.path.exists(USER_FILE): return
     with open(USER_FILE, "r") as f:
@@ -72,7 +70,7 @@ async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
     today = datetime.now(UZB_TZ).strftime('%d.%m.%Y')
     text = (
         f"<b>AQSh IQTISODIY TAQVIMI | {today}</b>\n\n"
-        f"Bugun kutilayotgan muhim voqealar (UZB vaqti bilan):\n\n"
+        f"bugun kutilayotgan muhim voqealar (UZB vaqti bilan):\n\n"
         f"17:30 — YaIM (GDP) o‘sishi\n"
         f"18:30 — Inflyatsiya darajasi (CPI)\n"
         f"19:00 — Ishsizlik nafaqasi arizalari"
@@ -87,7 +85,7 @@ async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=u_id, text=text, reply_markup=kb, parse_mode='HTML')
         except: continue
 
-# 6. TICKER TAHLILI (KENGAYTIRILGAN)
+# 6. TICKER TAHLILI
 def perform_analysis(f):
     try:
         price = f.get('Price', '0')
@@ -114,11 +112,13 @@ def perform_analysis(f):
             f"<b>M.CAP:</b> {f.get('Market Cap', 'N/A')} | <b>P/E:</b> {f.get('P/E', 'N/A')} | <b>Fwd P/E:</b> {f.get('Forward P/E', 'N/A')}\n"
             f"<b>P/B:</b> {f.get('P/B', 'N/A')} | <b>P/S:</b> {f.get('P/S', 'N/A')} | <b>Debt/Eq:</b> {raw_debt}\n"
             f"<b>DIVIDEND:</b> {f.get('Dividend %', 'N/A')} | <b>EPS (ttm):</b> {f.get('EPS (ttm)', 'N/A')}\n\n"
+            
             f"<b>TECHNICAL (TREND & MOMENTUM)</b>\n"
             f"<b>RSI (14):</b> {clean_val(f.get('RSI (14)', '0'))} | <b>ATR:</b> {f.get('ATR', 'N/A')}\n"
             f"<b>SMA20:</b> {f.get('SMA20', 'N/A')} | <b>SMA50:</b> {f.get('SMA50', 'N/A')} | <b>SMA200:</b> {f.get('SMA200', 'N/A')}\n"
-            f"<b>52W Range:</b> {f.get('52W Range', 'N/A')}\n"
-            f"—\n<b>SHARI’AT STATUSI:</b> {shariah}"
+            f"<b>52W Range:</b> {f.get('52W Range', 'N/A')}\n\n"
+            
+            f"—\n<b>SHARI’AT STATUSI: {shariah}</b>"
         )
         return analysis, f"<b>{raw_sector.upper()}</b> ({uzb_sector.upper()})", price, change
     except Exception as e:
@@ -132,7 +132,9 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     text = update.message.text.strip()
     if not text.startswith('$'): return
-    ticker_input = text[1:].upper().strip()
+    
+    # URL'dagi xatoliklarni oldini olish uchun barcha bo'shliqlarni tozalash
+    ticker_input = "".join(text[1:].split()).upper()
     
     progress = await update.message.reply_text(f"QIDIRILMOQDA: {ticker_input}...")
     
@@ -147,7 +149,7 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         analysis_text, sector_info, price, change = perform_analysis(fundament)
         
         caption = (
-            f"<b>SANA:</b> {now.strftime('%d.%m.%Y')} | <b>VAQT:</b> {now.strftime('%H:%M')} (UZB)\n\n"
+            f"<b>SANA:</b> {now.strftime('%d.%m.%Y')} | <b>VAQT:</b> {now.strftime('%H:%M')} (UZB)\n"
             f"<b>TICKER:</b> ${ticker_input} | <b>PRICE:</b> {price} ({change})\n"
             f"<b>SECTOR:</b> {sector_info}\n"
             f"—\n{analysis_text}"
@@ -168,11 +170,10 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await progress.delete()
     except Exception as e:
         logger.error(f"Request error: {e}")
-        await progress.edit_text("$ticker noto‘g‘ri yoki uzilish yuz berdi")
+        await progress.edit_text("$ticker noto‘g‘ri yoki uzilish yuz berdi.")
 
 # 8. MAIN ENTRY POINT
 def main():
-    # 1. HTTP Serverni alohida thread'da ishga tushirish (Render uchun shart)
     threading.Thread(target=run_http_server, daemon=True).start()
     
     token = os.getenv("BOT_TOKEN")
@@ -180,7 +181,6 @@ def main():
         logger.error("BOT_TOKEN topilmadi!")
         return
 
-    # Python 3.12 va yuqori versiyalar uchun barqaror build
     app = Application.builder().token(token).build()
     
     if app.job_queue:
@@ -189,7 +189,7 @@ def main():
             time=dt_time(hour=9, minute=0, second=0, tzinfo=UZB_TZ)
         )
     
-    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuborishingiz mumkin")))
+    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuborishingiz mumkin.")))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\$'), handle_ticker))
     
     logger.info("Bot polling rejimida ishga tushirildi...")
