@@ -203,7 +203,7 @@ async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Request error ({ticker}): {e}")
-        await status_msg.edit_text("xatolik yuz berdi yoki ma’lumot topilmadi.")
+        await status_msg.edit_text("ma’lumot topilmadi yoki xatolik yuz berdi.")
 
 # 8. Main funksiyasi
 def main():
