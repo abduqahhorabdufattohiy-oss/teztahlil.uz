@@ -3,4 +3,7 @@ finvizfinance==0.14.7
 pytz==2024.1
 python-dotenv==1.0.1
 httpx==0.27.0
-apscheduler==3.10.4
+# Pandas finvizfinance uchun ba’zan kerak bo'ladi
+pandas
+# Scraping uchun kerak bo‘lishi mumkin
+beautifulsoup4
