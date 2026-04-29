@@ -144,7 +144,7 @@ def main():
     token = os.getenv("BOT_TOKEN")
     app = Application.builder().token(token).build()
     
-    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuboring")))
+    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuborishingiz mumkin")))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\$'), handle_ticker))
     
     logger.info("Bot polling rejimida ishga tushirildi...")
