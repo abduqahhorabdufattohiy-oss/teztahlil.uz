@@ -130,12 +130,12 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     text = update.message.text.strip()
     if not text.startswith('$'): return
-    ticker = text[1:].upper()
+    ticker_input = text[1:].upper().strip()
     
-    progress = await update.message.reply_text(f"QIDIRILMOQDA: {ticker}...")
+    progress = await update.message.reply_text(f"QIDIRILMOQDA: {ticker_input}...")
     
     try:
-        stock = finvizfinance(ticker)
+        stock = finvizfinance(ticker_input)
         fundament = stock.ticker_fundament()
         if not fundament:
             await progress.edit_text("Ticker topilmadi.")
@@ -146,17 +146,17 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         caption = (
             f"<b>SANA:</b> {now.strftime('%d.%m.%Y')} | <b>VAQT:</b> {now.strftime('%H:%M')} (UZB)\n\n"
-            f"<b>TICKER:</b> ${ticker} | <b>PRICE:</b> {price} ({change})\n"
+            f"<b>TICKER:</b> ${ticker_input} | <b>PRICE:</b> {price} ({change})\n"
             f"<b>SECTOR:</b> {sector_info}\n"
             f"—\n{analysis_text}"
         )
 
         kb = InlineKeyboardMarkup([[
-            InlineKeyboardButton("FINVIZ", url=f"https://finviz.com/quote.ashx?t={ticker}"),
-            InlineKeyboardButton("ISLAMICLY", url="https://www.islamicly.com")
+            InlineKeyboardButton("FINVIZ", url=f"https://finviz.com/quote.ashx?t={ticker_input}"),
+            InlineKeyboardButton("ISLAMICLY", url="https://www.islamicly.com/")
         ]])
 
-        chart_url = f"https://charts2.finviz.com/chart.ashx?t={ticker}&ty=c&ta=1&p=d&rev={int(time.time())}"
+        chart_url = f"https://charts2.finviz.com/chart.ashx?t={ticker_input}&ty=c&ta=1&p=d&rev={int(time.time())}"
         
         try:
             await update.message.reply_photo(photo=chart_url, caption=caption, parse_mode='HTML', reply_markup=kb)
@@ -166,16 +166,19 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await progress.delete()
     except Exception as e:
         logger.error(f"Request error: {e}")
-        await progress.edit_text("ma’lumot olishda xatolik yuz berdi.")
+        await progress.edit_text("$ticker noto‘g‘ri yoki uzilish yuz berdi .")
 
 # 8. MAIN ENTRY POINT
 def main():
+    # Render port tinglovchi
     threading.Thread(target=run_http_server, daemon=True).start()
+    
     token = os.getenv("BOT_TOKEN")
     if not token:
         logger.error("BOT_TOKEN topilmadi!")
         return
 
+    # Python 3.12 va undan yuqori versiyalar uchun barqaror build
     app = Application.builder().token(token).build()
     
     if app.job_queue:
@@ -184,7 +187,7 @@ def main():
             time=dt_time(hour=9, minute=0, second=0, tzinfo=UZB_TZ)
         )
     
-    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuborishingiz mumkin")))
+    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuborishingiz mumkin.")))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\$'), handle_ticker))
     
     logger.info("Bot ishga tushirildi...")
