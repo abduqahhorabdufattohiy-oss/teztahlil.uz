@@ -1,7 +1,8 @@
 import logging
 import os
 import time
-from datetime import datetime, timedelta, timezone
+import pytz
+from datetime import datetime, timedelta, timezone, time as dt_time
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -14,6 +15,9 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+UZB_TZ = pytz.timezone('Asia/Tashkent')
+USER_FILE = "users.txt"
 
 SECTOR_MAP = {
     "Technology": "Texnologiya",
@@ -29,6 +33,47 @@ SECTOR_MAP = {
     "Utilities": "Kommunal xizmatlar"
 }
 
+def save_user(user_id):
+    if not os.path.exists(USER_FILE):
+        with open(USER_FILE, "w") as f: pass
+    
+    with open(USER_FILE, "r+") as f:
+        users = f.read().splitlines()
+        if str(user_id) not in users:
+            f.write(f"{user_id}\n")
+
+# --- IQTISODIY TAQVIM FUNKSIYASI ---
+async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
+    if not os.path.exists(USER_FILE):
+        return
+
+    with open(USER_FILE, "r") as f:
+        user_ids = f.read().splitlines()
+
+    today_date = datetime.now(UZB_TZ).strftime('%d.%m.%Y')
+    
+    text = (
+        f"AQSh IQTISODIY TAQVIMI | {today_date}\n\n"
+        f"bugun kutilayotgan muhim voqealar (UZB vaqti bilan):\n\n"
+        f"17:30 — YaIM (GDP) o‘sishi\n"
+        f"18:30 — Inflyatsiya darajasi (CPI)\n"
+        f"19:00 — Ishsizlik nafaqasi arizalari"
+    )
+    
+    kb = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("Investing.com", url="https://www.investing.com/economic-calendar/"),
+            InlineKeyboardButton("TradingView", url="https://www.tradingview.com/economic-calendar/")
+        ]
+    ])
+    
+    for user_id in user_ids:
+        try:
+            await context.bot.send_message(chat_id=user_id, text=text, reply_markup=kb)
+        except Exception as e:
+            logger.error(f"Xabar yuborishda xato ({user_id}): {e}")
+
+# --- ANALIZ FUNKSIYALARI ---
 def clean_value(val):
     if val in ['-', 'N/A', None]: 
         return "0"
@@ -83,9 +128,15 @@ def get_full_analysis(f):
         logger.error(f"Error in analysis: {e}")
         return "Tahlil jarayonida xatolik.", "N/A", "0", "0%"
 
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    save_user(update.effective_user.id)
+    await update.message.reply_text("marhamat! $ticker yuborishingiz mumkin")
+
 async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
+    
+    save_user(update.effective_user.id)
 
     text = update.message.text.strip()
     if not text.startswith('$'):
@@ -133,19 +184,24 @@ async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Request error ({ticker}): {e}")
-        await status_msg.edit_text("Xatolik yuz berdi yoki ma'lumot topilmadi.")
+        await status_msg.edit_text("xatolik yuz berdi yoki ma’lumot topilmadi.")
 
 def main():
     token = os.getenv("BOT_TOKEN")
     if not token:
-        logger.error("BOT_TOKEN topilmadi!")
         return
 
     app = Application.builder().token(token).build()
-    app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuborishingiz mumkin")))
+    
+    job_queue = app.job_queue
+    job_queue.run_daily(
+        send_economic_calendar, 
+        time=dt_time(hour=9, minute=0, second=0, tzinfo=UZB_TZ)
+    )
+
+    app.add_handler(CommandHandler("start", start_command))
     app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\$'), handle_request))
 
-    logger.info("bot ishga tushdi.")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
