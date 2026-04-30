@@ -5,6 +5,7 @@ import pytz
 import threading
 import sys
 import requests
+import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, time as dt_time
 from dotenv import load_dotenv
@@ -12,13 +13,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from finvizfinance.quote import finvizfinance
 
-# 1. LOGGING
+# 1. LOGGING SOZLAMALARI
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# 2. HEALTH CHECK SERVER
+# 2. HEALTH CHECK SERVER (Render 24/7 ishlashi uchun)
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -34,7 +35,7 @@ def run_http_server():
     except Exception as e:
         logger.error(f"HTTP Server error: {e}")
 
-# 3. KONSTANTALAR
+# 3. GLOBAL KONSTANTALAR
 UZB_TZ = pytz.timezone('Asia/Tashkent')
 USER_FILE = "users.txt"
 
@@ -71,12 +72,11 @@ def get_economic_calendar_data():
             dt = datetime.strptime(event['date'], '%Y-%m-%dT%H:%M:%S.000Z')
             uzb_time = dt.replace(tzinfo=pytz.UTC).astimezone(UZB_TZ).strftime('%H:%M')
             title = event.get('title_id', event.get('indicator', 'Muhim voqea'))
-            # Vaqtni bold qilish
             events.append(f"<b>{uzb_time}</b> — {title}")
         return "\n".join(events[:10]) if events else "bugun kutilayotgan muhim voqealar topilmadi."
     except: return "ma’lumotlarni yuklashda uzilish bo’ldi."
 
-# 5. TAQVIM XABARI
+# 5. TAQVIM XABARI (09:00)
 async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
     if not os.path.exists(USER_FILE): return
     try:
@@ -89,15 +89,15 @@ async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
             f"{calendar_text}"
         )
         kb = InlineKeyboardMarkup([[
-            InlineKeyboardButton("FINVIZ", url="https://finviz.com/calendar.ashx"),
-            InlineKeyboardButton("TRADINGVIEW", url="https://www.tradingview.com/economic-calendar/")
+            InlineKeyboardButton("FINVIZ", url="https://FINVIZ.com/calendar.ashx"),
+            InlineKeyboardButton("TRADINGVIEW", url="https://www.TRADINGVIEW.com/economic-calendar/")
         ]])
         for u_id in user_ids:
             try: await context.bot.send_message(chat_id=u_id, text=text, reply_markup=kb, parse_mode='HTML', disable_web_page_preview=True)
             except: continue
     except: pass
 
-# 6. TICKER TAHLILI
+# 6. TICKER TAHLILI VA FORMATLASH
 def clean_val(val):
     return str(val).replace(',', '') if val not in ['-', 'N/A', None] else "N/A"
 
@@ -106,6 +106,7 @@ def perform_analysis(f):
         raw_debt = clean_val(f.get('Debt/Eq', '0'))
         try: debt_eq = float(raw_debt)
         except: debt_eq = 0.0
+        
         shariah = "NOJOIZ" if any(x in f.get('Industry', '') for x in ['Banks', 'Insurance', 'Gambling', 'Tobacco']) else ("SHUBHALI" if debt_eq > 0.33 else "JOIZ")
         
         analysis = (
@@ -120,6 +121,7 @@ def perform_analysis(f):
             f"<b>52W Range:</b> {f.get('52W Range', 'N/A')}\n"
             f"—\n<b>SHARI’AT STATUSI:</b> {shariah}"
         )
+        
         raw_sector = f.get('Sector', 'N/A')
         uzb_sector = SECTOR_MAP.get(raw_sector, raw_sector).upper()
         sector_display = f"<b>{raw_sector.upper()}</b> ({uzb_sector})"
@@ -140,31 +142,51 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         now = datetime.now(UZB_TZ)
         txt, sec, pr, ch = perform_analysis(f)
         cap = f"<b>SANA:</b> {now.strftime('%d.%m.%Y')} | <b>VAQT:</b> {now.strftime('%H:%M')} (UZB)\n\n<b>TICKER:</b> ${ticker} | <b>PRICE:</b> {pr} ({ch})\n<b>SECTOR:</b> {sec}\n{txt}"
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("FINVIZ", url=f"https://finviz.com/quote.ashx?t={ticker}"), InlineKeyboardButton("ISLAMICLY", url="https://www.islamicly.com/home/stocks")]])
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("FINVIZ", url=f"https://FINVIZ.com/quote.ashx?t={ticker}"), 
+            InlineKeyboardButton("TRADINGVIEW", url=f"https://www.TRADINGVIEW.com/symbols/{ticker}/")
+        ]])
         chart = f"https://charts2.finviz.com/chart.ashx?t={ticker}&ty=c&ta=1&p=d&rev={int(time.time())}"
         try:
             await update.message.reply_photo(photo=chart, caption=cap, parse_mode='HTML', reply_markup=kb)
             await prog.delete()
         except: await prog.edit_text(cap, parse_mode='HTML', reply_markup=kb)
-    except: await prog.edit_text("$ticker noto‘g‘ri yoki tahlilda uzilish yuz berdi")
+    except: await prog.edit_text(f"${ticker} noto‘g‘ri yoki tahlilda uzilish yuz berdi")
 
-# 7. MAIN RUNNER
+# 7. OPTIMALLASHTIRILGAN MAIN RUNNER
 def main():
     threading.Thread(target=run_http_server, daemon=True).start()
     token = os.getenv("BOT_TOKEN")
     if not token: sys.exit(1)
     
     while True:
+        # Har safar yangi loop yaratish (Event loop is closed xatosi uchun)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
         try:
             app = Application.builder().token(token).build()
+            
             if app.job_queue:
-                app.job_queue.run_daily(send_economic_calendar, time=dt_time(hour=9, minute=0, second=0, tzinfo=UZB_TZ))
+                app.job_queue.run_daily(
+                    send_economic_calendar, 
+                    time=dt_time(hour=9, minute=0, second=0, tzinfo=UZB_TZ)
+                )
+            
             app.add_handler(CommandHandler("start", lambda u, c: u.message.reply_text("marhamat! $ticker yuborishingiz mumkin")))
             app.add_handler(MessageHandler(filters.TEXT & filters.Regex(r'^\$'), handle_ticker))
-            app.run_polling(drop_pending_updates=True)
+            
+            logger.info("Bot polling boshladi...")
+            app.run_polling(drop_pending_updates=True, close_loop=False)
+            
         except Exception as e:
-            logger.error(f"Restarting... {e}")
+            logger.error(f"Restarting... Xato: {e}")
             time.sleep(10)
+        finally:
+            try:
+                loop.close()
+            except:
+                pass
 
 if __name__ == "__main__":
     main()
