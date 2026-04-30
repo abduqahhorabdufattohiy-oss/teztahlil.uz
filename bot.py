@@ -185,7 +185,7 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             await prog.edit_text(cap, parse_mode='HTML', reply_markup=kb)
     except Exception:
-        await prog.edit_text(f"${ticker} noto‘g‘ri yoki uzulish yuz berdi")
+        await prog.edit_text(f"${ticker} noto‘g‘ri yoki uzilish yuz berdi")
 
 async def handle_invalid_content(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Media va noto‘g‘ri formatlarni rad etish uchun ogohlantirish barchasi qalin shriftda"""
