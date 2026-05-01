@@ -77,7 +77,7 @@ async def get_economic_calendar_data():
     }
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
             data = response.json()
@@ -96,7 +96,7 @@ async def get_economic_calendar_data():
         logger.error(f"Taqvim xatosi: {e}")
     return None
 
-# 4. TAHLIL MANTIQI (Shari’at statusi qo'shildi)
+# 4. TAHLIL MANTIQI (Shari’at statusi qo‘shildi)
 def perform_analysis(f):
     try:
         raw_debt = str(f.get('Debt/Eq', '0')).replace(',', '')
@@ -130,7 +130,7 @@ async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
         user_ids = [row[0] for row in conn.execute("SELECT user_id FROM users").fetchall()]
 
     if events is None:
-        text = f"<b>AQSh IQTISODIY TAQVIMI | {today}</b>\n—\nma’lumotlarni yuklashda texnik uzilish yuz berdi."
+        text = f"<b>AQSh IQTISODIY TAQVIMI | {today}</b>\n—\nma’lumotlarni yuklashda texnik uzilish yuz berdi. marhamat, quyida havolalar orqali tanishib ko‘rishingiz mumkin. "
     elif events:
         text = f"<b>AQSh IQTISODIY TAQVIMI | {today}</b>\n—\nbugun (UZB vaqti bilan):\n\n" + "\n".join(events[:12])
     else:
@@ -148,6 +148,7 @@ async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
         except: continue
 
 async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text: return
     ticker = "".join(update.message.text.strip()[1:].split()).upper()
     user_id = str(update.effective_user.id)
     
@@ -167,7 +168,10 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     prog = await update.message.reply_text(f"QIDIRILMOQDA.. ${ticker}")
     try:
-        f = await asyncio.to_thread(finvizfinance(ticker).ticker_fundament)
+        # Sinxron funksiyani thread'da chaqiramiz
+        f_obj = finvizfinance(ticker)
+        f = await asyncio.to_thread(f_obj.ticker_fundament)
+        
         if not f:
             await prog.edit_text(f"${ticker} topilmadi."); return
         
@@ -183,7 +187,8 @@ async def handle_ticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await prog.delete()
         except:
             await prog.edit_text(cap, parse_mode='HTML', reply_markup=kb_links)
-    except:
+    except Exception as e:
+        logger.error(f"Ticker xatosi: {e}")
         await prog.edit_text(f"${ticker} noto‘g‘ri yoki uzilish yuz berdi")
 
 def main():
