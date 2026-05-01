@@ -9,7 +9,9 @@ import sqlite3
 import httpx
 # PYTHON 3.13+ UCHUN MAXSUS TUZATISH (MUHIM!)
 import types
-sys.modules['cgi'] = types.ModuleType('cgi')
+mock_module = types.ModuleType('cgi')
+mock_module.escape = lambda x: x 
+sys.modules['cgi'] = mock_module
 sys.modules['imghdr'] = types.ModuleType('imghdr')
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
