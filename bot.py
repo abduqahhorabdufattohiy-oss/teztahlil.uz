@@ -7,7 +7,7 @@ import sys
 import asyncio
 import sqlite3
 import httpx
-# Modullarni simulyatsiya qilish (Python 3.13+ uchun)
+# PYTHON 3.13+ UCHUN MAXSUS TUZATISH (MUHIM!)
 import types
 sys.modules['cgi'] = types.ModuleType('cgi')
 sys.modules['imghdr'] = types.ModuleType('imghdr')
@@ -20,6 +20,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from finvizfinance.quote import finvizfinance
 from googletrans import Translator
 
+# Logging sozlamalari
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
