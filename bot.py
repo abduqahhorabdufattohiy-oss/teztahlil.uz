@@ -105,8 +105,8 @@ async def get_economic_calendar_data():
                 try: title = translator.translate(orig_title)
                 except: title = orig_title
             events.append(f"<b>{uzb_time}</b> — {title}")
-        return "\n".join(events[:10]) if events else "bugun kutilayotgan muhim voqealar topilmadi."
-    except: return "ma’lumotlarni yuklashda uzilish bo‘ldi."
+        return "\n".join(events[:10]) if events else "bugun iqtisodiy yangiliklar va hisobotlar kutilmayapti."
+    except: return "ma’lumotlarni yuklashda uzilish bo‘ldi. marhamat, quyidagi havolalar orqali tanishib ko‘rishingiz mumkin."
 
 async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
     try:
