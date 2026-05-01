@@ -127,8 +127,7 @@ async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
     conn.close()
 
     if events is None:
-        text = f"<b>AQSh IQTISODIY TAQVIMI | {today}</b>\n—\nma’lumotlarni yuklashda texnik uzilish yuz berdi. 
-        marhamat, quyida manbalar orqali tanishib ko‘rishingiz mumkin."
+        text = f"<b>AQSh IQTISODIY TAQVIMI | {today}</b>\n—\nma’lumotlarni yuklashda texnik uzilish yuz berdi. marhamat, quyida manbalar orqali tanishib ko‘rishingiz mumkin."
     elif events:
         text = f"<b>AQSh IQTISODIY TAQVIMI | {today}</b>\n—\nbugun (UZB vaqti bilan):\n\n" + "\n".join(events[:12])
     else:
