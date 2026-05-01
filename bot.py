@@ -7,6 +7,11 @@ import sys
 import asyncio
 import sqlite3
 import httpx
+# Modullarni simulyatsiya qilish (Python 3.13+ uchun)
+import types
+sys.modules['cgi'] = types.ModuleType('cgi')
+sys.modules['imghdr'] = types.ModuleType('imghdr')
+
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, time as dt_time, timedelta
 from dotenv import load_dotenv
