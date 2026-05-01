@@ -7,7 +7,6 @@ import sys
 import asyncio
 import sqlite3
 import httpx
-import xml.etree.ElementTree as ET
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, time as dt_time
 from dotenv import load_dotenv
@@ -70,19 +69,6 @@ def run_http_server():
     except Exception as e:
         logger.error(f"HTTP Server error: {e}")
 
-async def get_investing_news():
-    try:
-        url = "https://uz.investing.com/rss/news_285.rss"
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=10)
-            root = ET.fromstring(response.content)
-            news_items = []
-            for item in root.findall('./channel/item')[:3]:
-                title = item.find('title').text
-                news_items.append(f"• {title}")
-            return "\n".join(news_items) if news_items else ""
-    except: return ""
-
 async def get_economic_calendar_data():
     try:
         url = "https://economic-calendar.tradingview.com/events"
@@ -105,8 +91,8 @@ async def get_economic_calendar_data():
                 try: title = translator.translate(orig_title)
                 except: title = orig_title
             events.append(f"<b>{uzb_time}</b> — {title}")
-        return "\n".join(events[:10]) if events else "bugun iqtisodiy yangiliklar va hisobotlar kutilmayapti."
-    except: return "ma’lumotlarni yuklashda uzilish bo‘ldi. marhamat, quyidagi havolalar orqali tanishib ko‘rishingiz mumkin."
+        return "\n".join(events[:10]) if events else "bugun iqtisodiy hisobotlar va yangiliklar kutilmayapti."
+    except: return "ma’lumotlarni yuklashda uzilish bo‘ldi. marhamat, quyidagi havolalar orqali tanishib xabardor bo‘lishingiz mumkin."
 
 async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -117,11 +103,8 @@ async def send_economic_calendar(context: ContextTypes.DEFAULT_TYPE):
 
         today = datetime.now(UZB_TZ).strftime('%d.%m.%Y')
         calendar_text = await get_economic_calendar_data()
-        news_text = await get_investing_news()
         
-        text = f"<b>BOZOR TAQVIMI VA YANGILIKLARI | {today}</b>\n—\n<b>AQSh IQTISODIY TAQVIMI (UZB):</b>\n{calendar_text}"
-        if news_text:
-            text += f"\n\n<b>FOND BOZORI YANGILIKLARI (INVESTING):</b>\n{news_text}"
+        text = f"<b>AQSh IQTISODIY TAQVIMI | {today}</b>\n—\n{calendar_text}"
             
         kb = InlineKeyboardMarkup([[
             InlineKeyboardButton("INVESTING", url="https://uz.investing.com/news/stock-market-news"),
