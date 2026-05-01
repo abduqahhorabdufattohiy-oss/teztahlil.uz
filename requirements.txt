@@ -5,6 +5,4 @@ python-dotenv
 httpx
 pandas
 beautifulsoup4
-googletrans==4.0.0-rc1
-legacy-cgi
-legacy-imghdr
+googletrans==3.1.0a0
