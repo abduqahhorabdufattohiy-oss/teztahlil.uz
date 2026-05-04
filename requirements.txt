@@ -1,8 +1,6 @@
 python-telegram-bot
 finvizfinance
-httpx
-python-dotenv
-pytz
 deep-translator
-pymongo
-dnspython
+httpx
+pytz
+python-dotenv
