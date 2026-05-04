@@ -4,3 +4,5 @@ httpx
 python-dotenv
 pytz
 deep-translator
+pymongo
+dnspython
